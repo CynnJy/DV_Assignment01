@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<html lang="en">
+
+<head>
+    <title>Assignment 01 - Performance of Antibiotics on 16 bacteria</title>
+    <script src="https://d3js.org/d3.v4.js"></script>
+    <style>
+        body {
+            font: 12px sans-serif;
+            background-color: #122838;
+        }
+        
+        div {
+            margin: auto;
+        }
+        
+        .axis text {
+            font: 12px sans-serif;
+            fill: #F7EFE7;
+        }
+        
+        h2 {
+            font: 20px sans-serif;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 30px;
+            color: #F7EFE7;
+        }
+        
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: #F7EFE7;
+            shape-rendering: crispEdges;
+            opacity: 0.8;
+            stroke-width: 0.5;
+        }
+        
+        .axis line {
+            stroke-dasharray: 5;
+        }
+        
+        .tick line {
+            stroke: #bbb;
+            stroke-width: 0.8;
+        }
+    </style>
+</head>
+
+
+<body>
+    <div>
+        <!-- Title of the Graph -->
+        <h2>Performance of Antibiotics on 16 bacteria</h2>
+        <svg width="1500" height="700"></svg>
+    </div>
+    <script>
+        // Append the svg object to the body of the page
+        var svg = d3.select("svg"),
+            margin = {
+                top: 20,
+                right: 20,
+                bottom: 120,
+                left: 80
+            },
+            width = +svg.attr("width") - margin.left - margin.right,
+            height = +svg.attr("height") - margin.top - margin.bottom - 100,
+            g = svg.append("g").attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+        // Set X, Y and Z(Color)
+        var x0 = d3.scaleBand()
+            .rangeRound([0, width])
+            .paddingInner(0.2);
+
+        var x1 = d3.scaleBand()
+            .padding(0.1);
+
+        // Scale Log: Apply the data according to the range needed 
+        var y = d3.scaleLog()
+            .rangeRound([height, 0]);
+
+        // Color code for the antibotic (sub-group)
+        var z = d3.scaleOrdinal()
+            .range(["#B7E3E9", "#F9D3AF", "#F386A8"]);
+
+
+        // Load the Data_Anti csv file
+        d3.csv("data_anti.csv", function(error, data) {
+            if (error) throw error;
+
+            // Declare the attribute needed
+            var keys = ["Penicilin", "Streptomycin", "Neomycin"];
+
+            // Load each data based on the attribute needed
+            data.forEach(function(d) {
+                d.keys = keys.map(function(name) {
+                    return {
+                        name: name,
+                        value: +d[name],
+                        gs: d['Gram Staining']
+                    }
+                });
+            });
+
+            // Sort the data according the Gram Staining
+            data.sort(function(p, n) {
+                return d3.descending(p["Gram Staining"] + p.Bacteria, n["Gram Staining"] + n.Bacteria);
+            }).reverse();
+
+            // Set the domain of the point scale
+            x0.domain(data.map(function(d) {
+                return d.Bacteria;
+            }));
+            x1.domain(keys).rangeRound([0, x0.bandwidth()]);
+            y.domain([1000, 0.001]).nice();
+
+            // Background for the Gram-negative 
+            g.selectAll("background")
+                .data(data)
+                .enter().append("rect")
+                .attr("class", "background")
+                .attr("x", function(d) {
+                    return x0(d)
+                })
+                .attr("width", 783)
+                .attr("height", height)
+                .style("fill", "#7852A9");
+
+            // Display the data into bar
+            g.append("g")
+                .selectAll("g")
+                .data(data)
+                .enter().append("g")
+                .attr("transform", function(d) {
+                    return "translate(" + x0(d.Bacteria) + ",0)";
+                })
+                .selectAll("rect")
+                .data(function(d) {
+                    return keys.map(function(key) {
+                        return {
+                            key: key,
+                            value: d[key]
+                        };
+                    });
+                })
+                .enter().append("rect")
+                .attr("x", function(d) {
+                    return x1(d.key);
+                })
+                .attr("y", function(d) {
+                    return y(d.value);
+                })
+                .attr("width", x1.bandwidth())
+                .attr("height", function(d) {
+                    return height - y(d.value);
+                })
+                .attr("fill", function(d) {
+                    return z(d.key);
+                });
+
+            // X-axis Label: Bacteria Category
+            g.append("g")
+                .attr("class", "axis")
+                .attr("transform", "translate(0," + height + ")")
+                .call(d3.axisBottom(x0))
+                .selectAll("text")
+                .attr("transform", "translate(-10,0)rotate(-45)")
+                .style("text-anchor", "end")
+                .style("fill", "#F7EFE7");
+
+            // Y-axis Scale
+            g.append("g")
+                .attr("class", "axis")
+                .call(d3.axisLeft(y)
+                    .tickValues([1000, 100, 10, 1, 0.1, 0.01, 0.001])
+                    .ticks(8, d3.format(",.1s"))
+                    .tickSize(-width, 0));
+
+            // Y-axis Label: Title
+            g.append("g")
+                .attr("class", "y axis")
+                .append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", 20 - margin.left)
+                .attr("x", 0 - (height / 2))
+                .attr("dy", "1em")
+                .style("text-anchor", "middle")
+                .text("Minimum Inhibitory Concentration (MIC)")
+                .style("font-size", "15px")
+                .style("fill", "#F7EFE7");
+
+            // X-axis Label: Title
+            g.append("g")
+                .attr("class", "x axis")
+                .append("text")
+                .attr("y", height + 20)
+                .attr("x", width - 5)
+                .style("text-anchor", "middle")
+                .text("Bacteria")
+                .style("font-size", "12px")
+                .style("font-weight", "bold")
+                .style("fill", "#F7EFE7");
+
+            // Extra Label: Gram Negative
+            g.append("g")
+                .attr("class", "x axis")
+                .append("text")
+                .attr("y", 30)
+                .attr("x", x0.bandwidth() * 5.5)
+                .style("text-anchor", "middle")
+                .text("GRAM-NEGATIVE ")
+                .style("font-size", "15px")
+                .style("letter-spacing", "8px")
+                .style("opacity", "0.7")
+                .style("fill", "#F7EFE7");
+
+            // Extra Label: Gram Positive
+            g.append("g")
+                .attr("class", "x axis")
+                .append("text")
+                .attr("y", height + margin.bottom + margin.top + 20)
+                .attr("x", width - x0.bandwidth() * 4.5)
+                .style("text-anchor", "middle")
+                .text("GRAM-POSITIVE ")
+                .style("font-size", "15px")
+                .style("letter-spacing", "8px")
+                .style("opacity", "0.7")
+                .style("fill", "#F7EFE7");
+
+            // Value of each Data that display on top of bar
+            //------ Neomycin
+            g.selectAll('label')
+                .append('g')
+                .data(data)
+                .enter().append('text')
+                .text(function(d) {
+                    return d.Neomycin;
+                })
+                .attr('y', function(d) {
+                    return y(d.Neomycin) - 5;
+                })
+                .attr("text-anchor", function(d) {
+                    return "begin";
+                })
+                .attr('x', function(d) {
+                    return (x0(d.Bacteria) + x1.bandwidth() + 30);
+                })
+                .style("fill", "#F7EFE7");
+
+            //------ Streptomycin
+            g.selectAll('label')
+                .append('g')
+                .data(data)
+                .enter().append('text')
+                .text(function(d) {
+                    return d.Streptomycin;
+                })
+                .attr('y', function(d) {
+                    return y(d.Streptomycin) - 5;
+                })
+                .attr("text-anchor", function(d) {
+                    return "middle";
+                })
+                .attr('x', function(d) {
+                    return (x0(d.Bacteria) + x1.bandwidth() + 15);
+                })
+                .style("fill", "#F7EFE7");
+
+            //------ Penicilin
+            g.selectAll('label')
+                .append('g')
+                .data(data)
+                .enter().append('text')
+                .text(function(d) {
+                    return d.Penicilin;
+                })
+                .attr('y', function(d) {
+                    return y(d.Penicilin) - 5;
+                })
+                .attr("text-anchor", function(d) {
+                    return "middle";
+                })
+                .attr('x', function(d) {
+                    return (x0(d.Bacteria) + x1.bandwidth() / 2 + 3);
+                })
+                .style("fill", "#F7EFE7");
+
+            // Legend
+            var legend = g.append("g")
+                .attr("font-family", "sans-serif")
+                .attr("font-size", 12)
+                .attr("text-anchor", "end")
+                .selectAll("g")
+                .data(keys.slice().reverse())
+                .enter().append("g")
+                .attr("transform", function(d, i) {
+                    return "translate(0," + i * 20 + ")";
+                }).style("opacity", "0");
+
+            legend.append("rect")
+                .attr("y", height + 115)
+                .attr("width", 19)
+                .attr("height", 19)
+                .attr("fill", z);
+
+            legend.append("text")
+                .attr("y", height + 125)
+                .attr("x", 30)
+                .attr("dy", "0.30em")
+                .style("text-anchor", "start")
+                .text(function(d) {
+                    return d;
+                })
+                .style("fill", "#F7EFE7");
+
+            // Legend Animation
+            legend.transition().duration(400).delay(function(d, i) {
+                return 1300 + 100 * i;
+            }).style("opacity", "1");
+
+        });
+    </script>
+</body>
+
+</html>
+
+</html>
